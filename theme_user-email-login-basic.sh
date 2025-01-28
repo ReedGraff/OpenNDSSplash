@@ -1,363 +1,507 @@
 #!/bin/sh
-#Copyright (C) Conference Portal Theme 2024
+#Copyright (C) The openNDS Contributors 2004-2022
+#Copyright (C) BlueWave Projects and Services 2015-2023
+#This software is released under the GNU GPL license.
+#
+# Warning - shebang sh is for compatibliity with busybox ash (eg on OpenWrt)
+# This is changed to bash automatically by Makefile for generic Linux
+#
 
 # Title of this theme:
-title="theme_conference-login"
+title="theme_user-email-login-basic"
+
+
+
+# Overwrite Logging functions:
+auth_log () {
+	# We are ready to authenticate the client
+
+	rhid=$(printf "$hid$key" | sha256sum | awk -F' ' '{printf $1}')
+	ndsctlcmd="auth $rhid $quotas $custom"
+
+	do_ndsctl
+	authstat=$ndsctlout
+	# $authstat contains the response from do_ndsctl
+
+	loginfo="$userinfo, status=$authstat, mac=$clientmac, ip=$clientip, client_type=$client_type, zone=$client_zone, ua=$user_agent"
+	write_log
+	# We will not remove the client id file, rather we will let openNDS delete it on deauth/timeout
+}
+
+
+
+
+
+
 
 # functions:
 
 generate_splash_sequence() {
-    name_company_login
+	name_email_login
 }
 
 header() {
-    echo "<!DOCTYPE html>
-        <html>
-        <head>
-        <meta http-equiv=\"Cache-Control\" content=\"no-cache, no-store, must-revalidate\">
-        <meta http-equiv=\"Pragma\" content=\"no-cache\">
-        <meta http-equiv=\"Expires\" content=\"0\">
-        <meta charset=\"utf-8\">
-        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
-        <link rel=\"shortcut icon\" href=\"/images/splash.jpg\" type=\"image/x-icon\">
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-                font-family: 'Arial', sans-serif;
-            }
-            
-            body {
-                background: #f5f5f5;
-                color: #333;
-            }
-            
-            .container {
-                max-width: 600px;
-                margin: 2rem auto;
-                padding: 2rem;
-                background: white;
-                border-radius: 10px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            }
-            
-            .header {
-                text-align: center;
-                margin-bottom: 2rem;
-            }
-            
-            .header h1 {
-                color: #2c3e50;
-                font-size: 2rem;
-                margin-bottom: 0.5rem;
-            }
-            
-            .header p {
-                color: #7f8c8d;
-            }
-            
-            .form-group {
-                margin-bottom: 1.5rem;
-            }
-            
-            input[type=\"text\"],
-            input[type=\"email\"] {
-                width: 100%;
-                padding: 0.8rem;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                font-size: 1rem;
-                transition: border-color 0.3s ease;
-            }
-            
-            input[type=\"text\"]:focus,
-            input[type=\"email\"]:focus {
-                border-color: #3498db;
-                outline: none;
-            }
-            
-            input[type=\"submit\"] {
-                width: 100%;
-                padding: 1rem;
-                background: #3498db;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                font-size: 1rem;
-                cursor: pointer;
-                transition: background 0.3s ease;
-            }
-            
-            input[type=\"submit\"]:hover {
-                background: #2980b9;
-            }
-            
-            .tos-button {
-                text-align: center;
-                margin-top: 1rem;
-            }
-            
-            .tos-button input[type=\"submit\"] {
-                background: #95a5a6;
-                width: auto;
-                padding: 0.5rem 1rem;
-            }
-            
-            .footer {
-                text-align: center;
-                margin-top: 2rem;
-                padding-top: 1rem;
-                border-top: 1px solid #eee;
-                font-size: 0.8rem;
-                color: #7f8c8d;
-            }
-        </style>
-        <title>$gatewayname</title>
-        </head>
-        <body>
-        <div class=\"container\">
-    "
+# Define a common header html for every page served
+	echo "<!DOCTYPE html>
+		<html>
+		<head>
+		<meta http-equiv=\"Cache-Control\" content=\"no-cache, no-store, must-revalidate\">
+		<meta http-equiv=\"Pragma\" content=\"no-cache\">
+		<meta http-equiv=\"Expires\" content=\"0\">
+		<meta charset=\"utf-8\">
+		<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+		<link rel=\"shortcut icon\" href=\"/images/splash.jpg\" type=\"image/x-icon\">
+		<link rel=\"stylesheet\" type=\"text/css\" href=\"/splash.css\">
+		<title>$gatewayname</title>
+		</head>
+		<body>
+		<div class=\"offset\">
+		<med-blue>
+			$gatewayname <br>
+		</med-blue>
+		<div class=\"insert\" style=\"max-width:100%;\">
+	"
 }
 
 footer() {
-    year=$(date +'%Y')
-    echo "
-            <!-- 
-            <div class=\"footer\">
-                <img style=\"height:60px; width:60px;\" src=\"$imagepath\" alt=\"Conference Portal\"> 
-                <p>&copy; Conference Portal $year</p>
-                <p>Portal Version: $version</p>
-            </div>
-            -->
-        </div>
-        </body>
-        </html>
-    "
-    exit 0
+	# Define a common footer html for every page served
+	year=$(date +'%Y')
+	echo "
+		<hr>
+		<div style=\"font-size:0.5em;\">
+			<br>
+			<img style=\"height:60px; width:60px; float:left;\" src=\"$imagepath\" alt=\"Splash Page: For access to the Internet.\">
+			&copy; Portal: BlueWave Projects and Services 2015 - $year<br>
+			<br>
+			Portal Version: $version
+			<br><br><br><br>
+		</div>
+		</div>
+		</div>
+		</body>
+		</html>
+	"
+
+	exit 0
 }
 
-name_company_login() {
-    if [ ! -z "$username" ] && [ ! -z "$position" ] && [ ! -z "$company" ] && [ ! -z "$emailaddress" ]; then
-        thankyou_page
-        footer
-    fi
+name_email_login() {
+	# In this example, we check that both the username and email address fields have been filled in.
+	# If not then serve the initial page, again if necessary.
+	# We are not doing any specific validation here, but here is the place to do it if you need to.
+	#
+	# Note if only one of username or email address fields is entered then that value will be preserved
+	# and displayed on the page when it is re-served.
+	#
+	# The client is required to accept the terms of service.
 
-    login_form
-    footer
+	if [ ! -z "$username" ] && [ ! -z "$emailaddress" ]; then
+		thankyou_page
+		footer
+	fi
+
+	login_form
+	footer
 }
 
 login_form() {
-    echo "
-        <div class=\"header\">
-            <h1>Welcome to the Conference!</h1>
-            <p>Please sign in to access the Internet</p>
-        </div>
-        
-        <form action=\"/opennds_preauth/\" method=\"get\">
-            <input type=\"hidden\" name=\"fas\" value=\"$fas\">
-            
-            <div class=\"form-group\">
-                <input type=\"text\" name=\"username\" value=\"$username\" 
-                    autocomplete=\"on\" placeholder=\"Full Name\" required>
-            </div>
-            
-            <div class=\"form-group\">
-                <input type=\"text\" name=\"position\" value=\"$position\" 
-                    autocomplete=\"on\" placeholder=\"Position\" required>
-            </div>
-            
-            <div class=\"form-group\">
-                <input type=\"text\" name=\"company\" value=\"$company\" 
-                    autocomplete=\"on\" placeholder=\"Company\" required>
-            </div>
-            
-            <div class=\"form-group\">
-                <input type=\"email\" name=\"emailaddress\" value=\"$emailaddress\" 
-                    autocomplete=\"on\" placeholder=\"Email Address\" required>
-            </div>
-            
-            <input type=\"submit\" value=\"Accept Terms of Service & Connect\">
-        </form>
-    "
+	# Define a login form
 
-    read_terms
-    footer
+	echo "
+		<big-red>Welcome!</big-red><br>
+		<med-blue>You are connected to $client_zone</med-blue><br>
+		<italic-black>
+			To access the Internet you must enter your full name and email address then Accept the Terms of Service to proceed.
+		</italic-black>
+		<hr>
+		<form action=\"/opennds_preauth/\" method=\"get\">
+			<input type=\"hidden\" name=\"fas\" value=\"$fas\">
+			<input type=\"text\" name=\"username\" value=\"$username\" autocomplete=\"on\" ><br>Name<br><br>
+			<input type=\"email\" name=\"emailaddress\" value=\"$emailaddress\" autocomplete=\"on\" ><br>Email<br><br>
+			<input type=\"submit\" value=\"Accept Terms of Service\" >
+		</form>
+		<br>
+	"
+
+	read_terms
+	footer
 }
 
-thankyou_page() {
-    echo "
-        <div class=\"header\">
-            <h1>Thank You!</h1>
-            <p>Your connection is being set up</p>
-        </div>
-        
-        <div style=\"text-align: center; margin: 2rem 0;\">
-            <h2>Welcome $username</h2>
-            <p>from $company</p>
-            <p style=\"color: #7f8c8d;\">You are connected to $client_zone</p>
-        </div>
-    "
+thankyou_page () {
+	# If we got here, we have both the username and emailaddress fields as completed on the login page on the client,
+	# or Continue has been clicked on the "Click to Continue" page
+	# No further validation is required so we can grant access to the client. The token is not actually required.
 
-    binauth_custom="username=$username position=$position company=$company emailaddress=$emailaddress"
-    encode_custom
+	# We now output the "Thankyou page" with a "Continue" button.
 
-    if [ -z "$custom" ]; then
-        customhtml=""
-    else
-        customhtml="<input type=\"hidden\" name=\"custom\" value=\"$custom\">"
-    fi
+	# This is the place to include information or advertising on this page,
+	# as this page will stay open until the client user taps or clicks "Continue"
 
-    echo "
-        <form action=\"/opennds_preauth/\" method=\"get\">
-            <input type=\"hidden\" name=\"fas\" value=\"$fas\">
-            <input type=\"hidden\" name=\"username\" value=\"$username\">
-            <input type=\"hidden\" name=\"position\" value=\"$position\">
-            <input type=\"hidden\" name=\"company\" value=\"$company\">
-            <input type=\"hidden\" name=\"emailaddress\" value=\"$emailaddress\">
-            $customhtml
-            <input type=\"hidden\" name=\"landing\" value=\"yes\">
-            <input type=\"submit\" value=\"Continue to google.com\" 
-                onClick=\"window.location.href='https://google.com'; return true;\">
-        </form>
-    "
+	# Be aware that many devices will close the login browser as soon as
+	# the client user continues, so now is the time to deliver your message.
 
-    read_terms
-    footer
+	echo "
+		<big-red>
+			Thankyou for using this service
+		</big-red>
+		<br>
+		<b>Welcome $username</b>
+		<br>
+		<med-blue>You are connected to $client_zone</med-blue><br>
+	"
+
+	# Add your message here:
+	# You could retrieve text or images from a remote server using wget or curl
+	# as this router has Internet access whilst the client device does not (yet).
+	echo "
+		<br>
+		<italic-black>
+			Your News or Advertising could be here, contact the owners of this Hotspot to find out how!
+			<br>
+		</italic-black>
+	"
+
+	binauth_custom="username=$username emailaddress=$emailaddress"
+	encode_custom
+
+	if [ -z "$custom" ]; then
+		customhtml=""
+	else
+		customhtml="<input type=\"hidden\" name=\"custom\" value=\"$custom\">"
+	fi
+
+	# Continue to the landing page, the client is authenticated there
+	echo "
+		<form action=\"/opennds_preauth/\" method=\"get\">
+			<input type=\"hidden\" name=\"fas\" value=\"$fas\">
+			<input type=\"hidden\" name=\"username\" value=\"$username\">
+			<input type=\"hidden\" name=\"emailaddress\" value=\"$emailaddress\">
+			$customhtml
+			<input type=\"hidden\" name=\"landing\" value=\"yes\">
+			<input type=\"submit\" value=\"Continue\" >
+		</form>
+		<br>
+	"
+
+	# Serve the rest of the page:
+	read_terms
+	footer
 }
 
-# Function to create JSON entry for a user
-create_json_entry() {
-    # Get current timestamp
-    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    
-    # Create JSON object that matches existing log format
-    json_entry="{
-        \"timestamp\": \"$timestamp\",
-        \"status\": \"$authstat\",
-        \"mac\": \"$clientmac\",
-        \"ip\": \"$clientip\",
-        \"client_type\": \"$client_type\",
-        \"zone\": \"$client_zone\",
-        \"user_agent\": \"$user_agent\",
-        \"username\": \"$username\",
-        \"position\": \"$position\",
-        \"company\": \"$company\",
-        \"email\": \"$emailaddress\"
-    }"
-    
-    echo "$json_entry"
-}
-
-# Function to append to JSON file
-append_to_json_file() {
-    local json_file="/tmp/portal_auth.json"
-    local temp_file="/tmp/temp_portal_auth.json"
-    
-    # Create JSON file with array structure if it doesn't exist
-    if [ ! -f "$json_file" ]; then
-        echo '{"authentications":[]}' > "$json_file"
-    fi
-    
-    # Get new entry
-    local new_entry=$(create_json_entry)
-    
-    # Read existing file and insert new entry
-    jq --arg entry "$new_entry" '.authentications += [$entry | fromjson]' "$json_file" > "$temp_file"
-    
-    # Move temp file to original
-    mv "$temp_file" "$json_file"
-    
-    # Set appropriate permissions
-    chmod 644 "$json_file"
-}
-
-# Modified auth_log function that maintains original functionality
-auth_log() {
-    # Original authentication logic
-    rhid=$(printf "$hid$key" | sha256sum | awk -F' ' '{printf $1}')
-    ndsctlcmd="auth $rhid $quotas $custom"
-
-    do_ndsctl
-    authstat=$ndsctlout
-    
-    # Original logging
-    loginfo="$userinfo, status=$authstat, mac=$clientmac, ip=$clientip, client_type=$client_type, zone=$client_zone, ua=$user_agent"
-    write_log
-    
-    # Additional JSON logging
-    append_to_json_file
-    
-    # We will not remove the client id file, rather we will let openNDS delete it on deauth/timeout
-}
-
-# Modify the landing_page function to include the new logging
 landing_page() {
-    # Override the landing page to redirect to google.com
-    originurl="https://google.com"
-    
-    # Add the user credentials to $userinfo for the log
-    userinfo="$userinfo, user=$username, position=$position, company=$company, email=$emailaddress"
+	originurl=$(printf "${originurl//%/\\x}")
+	gatewayurl=$(printf "${gatewayurl//%/\\x}")
 
-    # authenticate and write to both logs
-    auth_log
+	# Add the user credentials to $userinfo for the log
+	userinfo="$userinfo, user=$username, email=$emailaddress"
 
-    # Rest of the landing_page function remains the same
-    auth_success="
-        <p>
-            <big-red>
-                You are now logged in and have been granted access to the Internet.
-            </big-red>
-            <hr>
-            <italic-black>
-                You will be redirected to google.com momentarily...
-            </italic-black>
-        </p>
-        <script>
-            window.location.href = 'https://google.com';
-        </script>
-    "
-    
-    auth_fail="
-        <p>
-            <big-red>
-                Something went wrong and you have failed to log in.
-            </big-red>
-            <hr>
-        </p>
-        <hr>
-        <p>
-            <italic-black>
-                Your login attempt probably timed out.
-            </italic-black>
-        </p>
-        <p>
-            <br>
-            Click or tap Continue to try again.
-        </p>
-        <form>
-            <input type=\"button\" VALUE=\"Continue\" onClick=\"location.href='$originurl'\" >
-        </form>
-        <hr>
-    "
+	# authenticate and write to the log - returns with $ndsstatus set
+	auth_log
 
-    if [ "$ndsstatus" = "authenticated" ]; then
-        echo "$auth_success"
-    else
-        echo "$auth_fail"
-    fi
+	# output the landing page - note many CPD implementations will close as soon as Internet access is detected
+	# The client may not see this page, or only see it briefly
+	auth_success="
+		<p>
+			<big-red>
+				You are now logged in and have been granted access to the Internet.
+			</big-red>
+			<hr>
 
-    read_terms
-    footer
+			<italic-black>
+				You can use your Browser, Email and other network Apps as you normally would.
+			</italic-black>
+
+			(Your device originally requested $originurl)
+			<hr>
+			Click or tap Continue to show the status of your account.
+		</p>
+		<form>
+			<input type=\"button\" VALUE=\"Continue\" onClick=\"location.href='$gatewayurl'\" >
+		</form>
+		<hr>
+	"
+	auth_fail="
+		<p>
+			<big-red>
+				Something went wrong and you have failed to log in.
+			</big-red>
+			<hr>
+		</p>
+		<hr>
+		<p>
+			<italic-black>
+				Your login attempt probably timed out.
+			</italic-black>
+		</p>
+		<p>
+			<br>
+			Click or tap Continue to try again.
+		</p>
+		<form>
+			<input type=\"button\" VALUE=\"Continue\" onClick=\"location.href='$originurl'\" >
+		</form>
+		<hr>
+	"
+
+	if [ "$ndsstatus" = "authenticated" ]; then
+		echo "$auth_success"
+	else
+		echo "$auth_fail"
+	fi
+
+	read_terms
+	footer
 }
 
-# Include other necessary functions from the original theme
-# (read_terms, display_terms remain the same)
+read_terms() {
+	#terms of service button
+	echo "
+		<form action=\"/opennds_preauth/\" method=\"get\">
+			<input type=\"hidden\" name=\"fas\" value=\"$fas\">
+			<input type=\"hidden\" name=\"terms\" value=\"yes\">
+			<input type=\"submit\" value=\"Read Terms of Service   \" >
+		</form>
+	"
+}
 
-# Add position and company to the additional theme variables
-additionalthemevars="username position company emailaddress"
+display_terms() {
+	# This is the all important "Terms of service"
+	# Edit this long winded generic version to suit your requirements.
+	####
+	# WARNING #
+	# It is your responsibility to ensure these "Terms of Service" are compliant with the REGULATIONS and LAWS of your Country or State.
+	# In most locations, a Privacy Statement is an essential part of the Terms of Service.
+	####
+
+	#Privacy
+	echo "
+		<b style=\"color:red;\">Privacy.</b><br>
+		<b>
+			By logging in to the system, you grant your permission for this system to store any data you provide for
+			the purposes of logging in, along with the networking parameters of your device that the system requires to function.<br>
+			All information is stored for your convenience and for the protection of both yourself and us.<br>
+			All information collected by this system is stored in a secure manner and is not accessible by third parties.<br>
+			In return, we grant you FREE Internet access.
+		</b><hr>
+	"
+
+	# Terms of Service
+	echo "
+		<b style=\"color:red;\">Terms of Service for this Hotspot.</b> <br>
+
+		<b>Access is granted on a basis of trust that you will NOT misuse or abuse that access in any way.</b><hr>
+
+		<b>Please scroll down to read the Terms of Service in full or click the Continue button to return to the Acceptance Page</b>
+
+		<form>
+			<input type=\"button\" VALUE=\"Continue\" onClick=\"history.go(-1);return true;\">
+		</form>
+	"
+
+	# Proper Use
+	echo "
+		<hr>
+		<b>Proper Use</b>
+
+		<p>
+			This Hotspot provides a wireless network that allows you to connect to the Internet. <br>
+			<b>Use of this Internet connection is provided in return for your FULL acceptance of these Terms Of Service.</b>
+		</p>
+
+		<p>
+			<b>You agree</b> that you are responsible for providing security measures that are suited for your intended use of the Service.
+			For example, you shall take full responsibility for taking adequate measures to safeguard your data from loss.
+		</p>
+
+		<p>
+			While the Hotspot uses commercially reasonable efforts to provide a secure service,
+			the effectiveness of those efforts cannot be guaranteed.
+		</p>
+
+		<p>
+			<b>You may</b> use the technology provided to you by this Hotspot for the sole purpose
+			of using the Service as described here.
+			You must immediately notify the Owner of any unauthorized use of the Service or any other security breach.<br><br>
+			We will give you an IP address each time you access the Hotspot, and it may change.
+			<br>
+			<b>You shall not</b> program any other IP or MAC address into your device that accesses the Hotspot.
+			You may not use the Service for any other reason, including reselling any aspect of the Service.
+			Other examples of improper activities include, without limitation:
+		</p>
+
+			<ol>
+				<li>
+					downloading or uploading such large volumes of data that the performance of the Service becomes
+					noticeably degraded for other users for a significant period;
+				</li>
+
+				<li>
+					attempting to break security, access, tamper with or use any unauthorized areas of the Service;
+				</li>
+
+				<li>
+					removing any copyright, trademark or other proprietary rights notices contained in or on the Service;
+				</li>
+
+				<li>
+					attempting to collect or maintain any information about other users of the Service
+					(including usernames and/or email addresses) or other third parties for unauthorized purposes;
+				</li>
+
+				<li>
+					logging onto the Service under false or fraudulent pretenses;
+				</li>
+
+				<li>
+					creating or transmitting unwanted electronic communications such as SPAM or chain letters to other users
+					or otherwise interfering with other user's enjoyment of the service;
+				</li>
+
+				<li>
+					transmitting any viruses, worms, defects, Trojan Horses or other items of a destructive nature; or
+				</li>
+
+				<li>
+					using the Service for any unlawful, harassing, abusive, criminal or fraudulent purpose.
+				</li>
+			</ol>
+	"
+
+	# Content Disclaimer
+	echo "
+		<hr>
+		<b>Content Disclaimer</b>
+
+		<p>
+			The Hotspot Owners do not control and are not responsible for data, content, services, or products
+			that are accessed or downloaded through the Service.
+			The Owners may, but are not obliged to, block data transmissions to protect the Owner and the Public.
+		</p>
+
+		The Owners, their suppliers and their licensors expressly disclaim to the fullest extent permitted by law,
+		all express, implied, and statutary warranties, including, without limitation, the warranties of merchantability
+		or fitness for a particular purpose.
+		<br><br>
+		The Owners, their suppliers and their licensors expressly disclaim to the fullest extent permitted by law
+		any liability for infringement of proprietory rights and/or infringement of Copyright by any user of the system.
+		Login details and device identities may be stored and be used as evidence in a Court of Law against such users.
+		<br>
+	"
+
+	# Limitation of Liability
+	echo "
+
+		<hr><b>Limitation of Liability</b>
+
+		<p>
+			Under no circumstances shall the Owners, their suppliers or their licensors be liable to any user or
+			any third party on account of that party's use or misuse of or reliance on the Service.
+		</p>
+
+		<hr><b>Changes to Terms of Service and Termination</b>
+
+		<p>
+			We may modify or terminate the Service and these Terms of Service and any accompanying policies,
+			for any reason, and without notice, including the right to terminate with or without notice,
+			without liability to you, any user or any third party. Please review these Terms of Service
+			from time to time so that you will be apprised of any changes.
+		</p>
+
+		<p>
+			We reserve the right to terminate your use of the Service, for any reason, and without notice.
+			Upon any such termination, any and all rights granted to you by this Hotspot Owner shall terminate.
+		</p>
+	"
+
+	# Indemnity
+	echo "
+		<hr><b>Indemnity</b>
+
+		<p>
+			<b>You agree</b> to hold harmless and indemnify the Owners of this Hotspot,
+			their suppliers and licensors from and against any third party claim arising from
+			or in any way related to your use of the Service, including any liability or expense arising from all claims,
+			losses, damages (actual and consequential), suits, judgments, litigation costs and legal fees, of every kind and nature.
+		</p>
+
+		<hr>
+		<form>
+			<input type=\"button\" VALUE=\"Continue\" onClick=\"history.go(-1);return true;\">
+		</form>
+	"
+	footer
+}
+
+#### end of functions ####
+
+
+#################################################
+#						#
+#  Start - Main entry point for this Theme	#
+#						#
+#  Parameters set here overide those		#
+#  set in libopennds.sh			#
+#						#
+#################################################
+
+# Quotas and Data Rates
+#########################################
+# Set length of session in minutes (eg 24 hours is 1440 minutes - if set to 0 then defaults to global sessiontimeout value):
+# eg for 100 mins:
+# session_length="100"
+#
+# eg for 20 hours:
+# session_length=$((20*60))
+#
+# eg for 20 hours and 30 minutes:
+# session_length=$((20*60+30))
+session_length="0"
+
+# Set Rate and Quota values for the client
+# The session length, rate and quota values could be determined by this script, on a per client basis.
+# rates are in kb/s, quotas are in kB. - if set to 0 then defaults to global value).
+upload_rate="0"
+download_rate="0"
+upload_quota="0"
+download_quota="0"
+
+quotas="$session_length $upload_rate $download_rate $upload_quota $download_quota"
+
+# Define the list of Parameters we expect to be sent sent from openNDS ($ndsparamlist):
+# Note you can add custom parameters to the config file and to read them you must also add them here.
+# Custom parameters are "Portal" information and are the same for all clients eg "admin_email" and "location" 
+ndscustomparams=""
+ndscustomimages=""
+ndscustomfiles=""
+
+ndsparamlist="$ndsparamlist $ndscustomparams $ndscustomimages $ndscustomfiles"
+
+# The list of FAS Variables used in the Login Dialogue generated by this script is $fasvarlist and defined in libopennds.sh
+#
+# Additional custom FAS variables defined in this theme should be added to $fasvarlist here.
+additionalthemevars="username emailaddress"
 
 fasvarlist="$fasvarlist $additionalthemevars"
 
-# Set the custom string for logs
+# You can choose to define a custom string. This will be b64 encoded and sent to openNDS.
+# There it will be made available to be displayed in the output of ndsctl json as well as being sent
+#	to the BinAuth post authentication processing script if enabled.
+# Set the variable $binauth_custom to the desired value.
+# Values set here can be overridden by the themespec file
+
+#binauth_custom="This is sample text sent from \"$title\" to \"BinAuth\" for post authentication processing."
+
+# Encode and activate the custom string
+#encode_custom
+
+# Set the user info string for logs (this can contain any useful information)
 userinfo="$title"
+
+# Customise the Logfile location. Note: the default uses the tmpfs "temporary" directory to prevent flash wear.
+# Override the defaults to a custom location eg a mounted USB stick.
+#mountpoint="/mylogdrivemountpoint"
+#logdir="$mountpoint/ndslog/"
+#logname="ndslog.log"
+
+
+
