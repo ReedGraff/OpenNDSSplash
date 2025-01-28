@@ -51,31 +51,22 @@ header() {
 		<meta charset=\"utf-8\">
 		<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
 		<link rel=\"shortcut icon\" href=\"/images/splash.jpg\" type=\"image/x-icon\">
-		<link rel=\"stylesheet\" type=\"text/css\" href=\"/splash.css\">
+        <style>
+            h1 {color:red;}
+            p {color:blue;}
+        </style>
 		<title>$gatewayname</title>
 		</head>
 		<body>
-		<div class=\"offset\">
-		<med-blue>
-			$gatewayname <br>
-		</med-blue>
-		<div class=\"insert\" style=\"max-width:100%;\">
+            <div class=\"offset\">
+            <div class=\"insert\" style=\"max-width:100%;\">
 	"
 }
 
 footer() {
 	# Define a common footer html for every page served
-	year=$(date +'%Y')
 	echo "
 		<hr>
-		<div style=\"font-size:0.5em;\">
-			<br>
-			<img style=\"height:60px; width:60px; float:left;\" src=\"$imagepath\" alt=\"Splash Page: For access to the Internet.\">
-			&copy; Portal: BlueWave Projects and Services 2015 - $year<br>
-			<br>
-			Portal Version: $version
-			<br><br><br><br>
-		</div>
 		</div>
 		</div>
 		</body>
@@ -95,7 +86,7 @@ name_email_login() {
 	#
 	# The client is required to accept the terms of service.
 
-	if [ ! -z "$username" ] && [ ! -z "$emailaddress" ]; then
+	if [ ! -z "$username" ] && [ ! -z "$emailaddress" ] && [ ! -z "$position" ] && [ ! -z "$company" ]; then
 		thankyou_page
 		footer
 	fi
@@ -108,22 +99,17 @@ login_form() {
 	# Define a login form
 
 	echo "
-		<big-red>Welcome!</big-red><br>
-		<med-blue>You are connected to $client_zone</med-blue><br>
-		<italic-black>
-			To access the Internet you must enter your full name and email address then Accept the Terms of Service to proceed.
-		</italic-black>
-		<hr>
 		<form action=\"/opennds_preauth/\" method=\"get\">
 			<input type=\"hidden\" name=\"fas\" value=\"$fas\">
 			<input type=\"text\" name=\"username\" value=\"$username\" autocomplete=\"on\" ><br>Name<br><br>
 			<input type=\"email\" name=\"emailaddress\" value=\"$emailaddress\" autocomplete=\"on\" ><br>Email<br><br>
-			<input type=\"submit\" value=\"Accept Terms of Service\" >
+			<input type=\"text\" name=\"position\" value=\"$position\" autocomplete=\"on\" ><br>Position<br><br>
+			<input type=\"text\" name=\"company\" value=\"$company\" autocomplete=\"on\" ><br>Company<br><br>
+			<input type=\"submit\" value=\"Continue\" >
 		</form>
 		<br>
 	"
 
-	read_terms
 	footer
 }
 
@@ -141,27 +127,10 @@ thankyou_page () {
 	# the client user continues, so now is the time to deliver your message.
 
 	echo "
-		<big-red>
-			Thankyou for using this service
-		</big-red>
-		<br>
-		<b>Welcome $username</b>
-		<br>
-		<med-blue>You are connected to $client_zone</med-blue><br>
+		<b>Welcome $username. We are connecting you right now</b>
 	"
 
-	# Add your message here:
-	# You could retrieve text or images from a remote server using wget or curl
-	# as this router has Internet access whilst the client device does not (yet).
-	echo "
-		<br>
-		<italic-black>
-			Your News or Advertising could be here, contact the owners of this Hotspot to find out how!
-			<br>
-		</italic-black>
-	"
-
-	binauth_custom="username=$username emailaddress=$emailaddress"
+	binauth_custom="username=$username emailaddress=$emailaddress position=$position company=$company"
 	encode_custom
 
 	if [ -z "$custom" ]; then
@@ -176,24 +145,31 @@ thankyou_page () {
 			<input type=\"hidden\" name=\"fas\" value=\"$fas\">
 			<input type=\"hidden\" name=\"username\" value=\"$username\">
 			<input type=\"hidden\" name=\"emailaddress\" value=\"$emailaddress\">
+			<input type=\"hidden\" name=\"position\" value=\"$position\">
+			<input type=\"hidden\" name=\"company\" value=\"$company\">
 			$customhtml
 			<input type=\"hidden\" name=\"landing\" value=\"yes\">
-			<input type=\"submit\" value=\"Continue\" >
+			<input type=\"submit\" value=\"Or Click to Connect\" >
 		</form>
 		<br>
+        <script>
+            setTimeout(function() {
+                document.querySelector('form').submit();
+            }, 3000);
+        </script>
 	"
 
 	# Serve the rest of the page:
-	read_terms
 	footer
 }
 
+# This is the page after connecting...
 landing_page() {
 	originurl=$(printf "${originurl//%/\\x}")
 	gatewayurl=$(printf "${gatewayurl//%/\\x}")
 
 	# Add the user credentials to $userinfo for the log
-	userinfo="$userinfo, user=$username, email=$emailaddress"
+	userinfo="$userinfo, user=$username, email=$emailaddress, position=$position, company=$company"
 
 	# authenticate and write to the log - returns with $ndsstatus set
 	auth_log
@@ -249,186 +225,6 @@ landing_page() {
 		echo "$auth_fail"
 	fi
 
-	read_terms
-	footer
-}
-
-read_terms() {
-	#terms of service button
-	echo "
-		<form action=\"/opennds_preauth/\" method=\"get\">
-			<input type=\"hidden\" name=\"fas\" value=\"$fas\">
-			<input type=\"hidden\" name=\"terms\" value=\"yes\">
-			<input type=\"submit\" value=\"Read Terms of Service   \" >
-		</form>
-	"
-}
-
-display_terms() {
-	# This is the all important "Terms of service"
-	# Edit this long winded generic version to suit your requirements.
-	####
-	# WARNING #
-	# It is your responsibility to ensure these "Terms of Service" are compliant with the REGULATIONS and LAWS of your Country or State.
-	# In most locations, a Privacy Statement is an essential part of the Terms of Service.
-	####
-
-	#Privacy
-	echo "
-		<b style=\"color:red;\">Privacy.</b><br>
-		<b>
-			By logging in to the system, you grant your permission for this system to store any data you provide for
-			the purposes of logging in, along with the networking parameters of your device that the system requires to function.<br>
-			All information is stored for your convenience and for the protection of both yourself and us.<br>
-			All information collected by this system is stored in a secure manner and is not accessible by third parties.<br>
-			In return, we grant you FREE Internet access.
-		</b><hr>
-	"
-
-	# Terms of Service
-	echo "
-		<b style=\"color:red;\">Terms of Service for this Hotspot.</b> <br>
-
-		<b>Access is granted on a basis of trust that you will NOT misuse or abuse that access in any way.</b><hr>
-
-		<b>Please scroll down to read the Terms of Service in full or click the Continue button to return to the Acceptance Page</b>
-
-		<form>
-			<input type=\"button\" VALUE=\"Continue\" onClick=\"history.go(-1);return true;\">
-		</form>
-	"
-
-	# Proper Use
-	echo "
-		<hr>
-		<b>Proper Use</b>
-
-		<p>
-			This Hotspot provides a wireless network that allows you to connect to the Internet. <br>
-			<b>Use of this Internet connection is provided in return for your FULL acceptance of these Terms Of Service.</b>
-		</p>
-
-		<p>
-			<b>You agree</b> that you are responsible for providing security measures that are suited for your intended use of the Service.
-			For example, you shall take full responsibility for taking adequate measures to safeguard your data from loss.
-		</p>
-
-		<p>
-			While the Hotspot uses commercially reasonable efforts to provide a secure service,
-			the effectiveness of those efforts cannot be guaranteed.
-		</p>
-
-		<p>
-			<b>You may</b> use the technology provided to you by this Hotspot for the sole purpose
-			of using the Service as described here.
-			You must immediately notify the Owner of any unauthorized use of the Service or any other security breach.<br><br>
-			We will give you an IP address each time you access the Hotspot, and it may change.
-			<br>
-			<b>You shall not</b> program any other IP or MAC address into your device that accesses the Hotspot.
-			You may not use the Service for any other reason, including reselling any aspect of the Service.
-			Other examples of improper activities include, without limitation:
-		</p>
-
-			<ol>
-				<li>
-					downloading or uploading such large volumes of data that the performance of the Service becomes
-					noticeably degraded for other users for a significant period;
-				</li>
-
-				<li>
-					attempting to break security, access, tamper with or use any unauthorized areas of the Service;
-				</li>
-
-				<li>
-					removing any copyright, trademark or other proprietary rights notices contained in or on the Service;
-				</li>
-
-				<li>
-					attempting to collect or maintain any information about other users of the Service
-					(including usernames and/or email addresses) or other third parties for unauthorized purposes;
-				</li>
-
-				<li>
-					logging onto the Service under false or fraudulent pretenses;
-				</li>
-
-				<li>
-					creating or transmitting unwanted electronic communications such as SPAM or chain letters to other users
-					or otherwise interfering with other user's enjoyment of the service;
-				</li>
-
-				<li>
-					transmitting any viruses, worms, defects, Trojan Horses or other items of a destructive nature; or
-				</li>
-
-				<li>
-					using the Service for any unlawful, harassing, abusive, criminal or fraudulent purpose.
-				</li>
-			</ol>
-	"
-
-	# Content Disclaimer
-	echo "
-		<hr>
-		<b>Content Disclaimer</b>
-
-		<p>
-			The Hotspot Owners do not control and are not responsible for data, content, services, or products
-			that are accessed or downloaded through the Service.
-			The Owners may, but are not obliged to, block data transmissions to protect the Owner and the Public.
-		</p>
-
-		The Owners, their suppliers and their licensors expressly disclaim to the fullest extent permitted by law,
-		all express, implied, and statutary warranties, including, without limitation, the warranties of merchantability
-		or fitness for a particular purpose.
-		<br><br>
-		The Owners, their suppliers and their licensors expressly disclaim to the fullest extent permitted by law
-		any liability for infringement of proprietory rights and/or infringement of Copyright by any user of the system.
-		Login details and device identities may be stored and be used as evidence in a Court of Law against such users.
-		<br>
-	"
-
-	# Limitation of Liability
-	echo "
-
-		<hr><b>Limitation of Liability</b>
-
-		<p>
-			Under no circumstances shall the Owners, their suppliers or their licensors be liable to any user or
-			any third party on account of that party's use or misuse of or reliance on the Service.
-		</p>
-
-		<hr><b>Changes to Terms of Service and Termination</b>
-
-		<p>
-			We may modify or terminate the Service and these Terms of Service and any accompanying policies,
-			for any reason, and without notice, including the right to terminate with or without notice,
-			without liability to you, any user or any third party. Please review these Terms of Service
-			from time to time so that you will be apprised of any changes.
-		</p>
-
-		<p>
-			We reserve the right to terminate your use of the Service, for any reason, and without notice.
-			Upon any such termination, any and all rights granted to you by this Hotspot Owner shall terminate.
-		</p>
-	"
-
-	# Indemnity
-	echo "
-		<hr><b>Indemnity</b>
-
-		<p>
-			<b>You agree</b> to hold harmless and indemnify the Owners of this Hotspot,
-			their suppliers and licensors from and against any third party claim arising from
-			or in any way related to your use of the Service, including any liability or expense arising from all claims,
-			losses, damages (actual and consequential), suits, judgments, litigation costs and legal fees, of every kind and nature.
-		</p>
-
-		<hr>
-		<form>
-			<input type=\"button\" VALUE=\"Continue\" onClick=\"history.go(-1);return true;\">
-		</form>
-	"
 	footer
 }
 
@@ -479,7 +275,7 @@ ndsparamlist="$ndsparamlist $ndscustomparams $ndscustomimages $ndscustomfiles"
 # The list of FAS Variables used in the Login Dialogue generated by this script is $fasvarlist and defined in libopennds.sh
 #
 # Additional custom FAS variables defined in this theme should be added to $fasvarlist here.
-additionalthemevars="username emailaddress"
+additionalthemevars="username emailaddress position company"
 
 fasvarlist="$fasvarlist $additionalthemevars"
 
