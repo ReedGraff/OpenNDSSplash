@@ -13,6 +13,7 @@ Setup Conference Captive Portal:
 * Replace the default captive portal page with the one in this repo:
     * Using scp (<a href="https://openwrt.org/docs/guide-user/services/nas/sftp.server"> install this package</a>) or cli `opkg install openssh-sftp-server`
         * copy the local theme to the opennds after changing as you'd like: `scp LOCALFILEPATH/theme_user-email-login-basic.sh root@192.168.8.1:/usr/lib/opennds/`
+        * copy the local theme to the opennds after changing as you'd like: `scp LOCALFILEPATH/client_params.sh root@192.168.8.1:/usr/lib/opennds/`
     * Using nano
         * CD into the folder with the opennds splash pages: `cd /usr/lib/opennds`
         * Copy to make your own theme: `cp theme_click-to-continue.sh conference.sh`

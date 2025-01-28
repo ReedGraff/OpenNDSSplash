@@ -35,7 +35,6 @@ auth_log () {
 
 
 # functions:
-
 generate_splash_sequence() {
 	name_email_login
 }
@@ -52,14 +51,98 @@ header() {
 		<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
 		<link rel=\"shortcut icon\" href=\"/images/splash.jpg\" type=\"image/x-icon\">
         <style>
-            h1 {color:red;}
-            p {color:blue;}
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif;
+            }
+
+            body {
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                padding: 20px;
+            }
+
+            .card {
+                background: white;
+                padding: 40px;
+                border-radius: 12px;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                width: 100%;
+                max-width: 400px;
+            }
+
+            .header {
+                text-align: center;
+                margin-bottom: 40px;
+            }
+
+            .header h1 {
+                color: #1a1a1a;
+                font-size: 24px;
+                margin-bottom: 10px;
+            }
+
+            .header p {
+                color: #666;
+                font-size: 16px;
+            }
+
+            .form-group {
+                margin-bottom: 24px;
+            }
+
+            .form-group label {
+                display: block;
+                margin-bottom: 8px;
+                color: #555;
+                font-size: 14px;
+                font-weight: 500;
+            }
+
+            .form-group input {
+                width: 100%;
+                padding: 12px;
+                border: 2px solid #e1e1e1;
+                border-radius: 6px;
+                font-size: 16px;
+                transition: border-color 0.3s ease;
+            }
+
+            .form-group input:focus {
+                outline: none;
+                border-color: #667eea;
+            }
+
+            button {
+                width: 100%;
+                padding: 14px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border: none;
+                border-radius: 6px;
+                color: white;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: transform 0.2s ease;
+            }
+
+            button:hover {
+                transform: translateY(-1px);
+            }
+
+            button:active {
+                transform: translateY(1px);
+            }
         </style>
 		<title>$gatewayname</title>
 		</head>
 		<body>
-            <div class=\"offset\">
-            <div class=\"insert\" style=\"max-width:100%;\">
+            <div class=\"card\">
 	"
 }
 
@@ -99,14 +182,35 @@ login_form() {
 	# Define a login form
 
 	echo "
-		<form action=\"/opennds_preauth/\" method=\"get\">
-			<input type=\"hidden\" name=\"fas\" value=\"$fas\">
-			<input type=\"text\" name=\"username\" value=\"$username\" autocomplete=\"on\" ><br>Name<br><br>
-			<input type=\"email\" name=\"emailaddress\" value=\"$emailaddress\" autocomplete=\"on\" ><br>Email<br><br>
-			<input type=\"text\" name=\"position\" value=\"$position\" autocomplete=\"on\" ><br>Position<br><br>
-			<input type=\"text\" name=\"company\" value=\"$company\" autocomplete=\"on\" ><br>Company<br><br>
-			<input type=\"submit\" value=\"Continue\" >
-		</form>
+        <div class=\"header\">
+            <h1>Welcome to WiFi Login</h1>
+            <p>Please enter your details to connect</p>
+        </div>
+        <form action=\"/opennds_preauth/\" method=\"get\">
+            <input type=\"hidden\" name=\"fas\" value=\"$fas\">
+            
+            <div class=\"form-group\">
+                <label for=\"username\">Full Name</label>
+                <input type=\"text\" id=\"username\" name=\"username\" autocomplete=\"on\" placeholder=\"Enter your name\" required>
+            </div>
+            
+            <div class=\"form-group\">
+                <label for=\"emailaddress\">Email Address</label>
+                <input type=\"email\" id=\"emailaddress\" name=\"emailaddress\" autocomplete=\"on\" placeholder=\"Enter your email\" required>
+            </div>
+            
+            <div class=\"form-group\">
+                <label for=\"position\">Position</label>
+                <input type=\"text\" id=\"position\" name=\"position\" autocomplete=\"on\" placeholder=\"Enter your position\" required>
+            </div>
+            
+            <div class=\"form-group\">
+                <label for=\"company\">Company</label>
+                <input type=\"text\" id=\"company\" name=\"company\" autocomplete=\"on\" placeholder=\"Enter your company\" required>
+            </div>
+            
+            <button type=\"submit\">Connect to WiFi</button>
+        </form>
 		<br>
 	"
 
@@ -126,10 +230,6 @@ thankyou_page () {
 	# Be aware that many devices will close the login browser as soon as
 	# the client user continues, so now is the time to deliver your message.
 
-	echo "
-		<b>Welcome $username. We are connecting you right now</b>
-	"
-
 	binauth_custom="username=$username emailaddress=$emailaddress position=$position company=$company"
 	encode_custom
 
@@ -141,6 +241,10 @@ thankyou_page () {
 
 	# Continue to the landing page, the client is authenticated there
 	echo "
+        <div class=\"header\">
+            <h1>Connecting you to the Internet</h1>
+            <p>Please wait 10 seconds</p>
+        </div>
 		<form action=\"/opennds_preauth/\" method=\"get\">
 			<input type=\"hidden\" name=\"fas\" value=\"$fas\">
 			<input type=\"hidden\" name=\"username\" value=\"$username\">
@@ -149,13 +253,15 @@ thankyou_page () {
 			<input type=\"hidden\" name=\"company\" value=\"$company\">
 			$customhtml
 			<input type=\"hidden\" name=\"landing\" value=\"yes\">
-			<input type=\"submit\" value=\"Or Click to Connect\" >
-		</form>
+            
+            <button type=\"submit\">Connect Now</button>
+        </form>
+
 		<br>
         <script>
             setTimeout(function() {
                 document.querySelector('form').submit();
-            }, 3000);
+            }, 500);
         </script>
 	"
 
@@ -177,45 +283,17 @@ landing_page() {
 	# output the landing page - note many CPD implementations will close as soon as Internet access is detected
 	# The client may not see this page, or only see it briefly
 	auth_success="
-		<p>
-			<big-red>
-				You are now logged in and have been granted access to the Internet.
-			</big-red>
-			<hr>
-
-			<italic-black>
-				You can use your Browser, Email and other network Apps as you normally would.
-			</italic-black>
-
-			(Your device originally requested $originurl)
-			<hr>
-			Click or tap Continue to show the status of your account.
-		</p>
-		<form>
-			<input type=\"button\" VALUE=\"Continue\" onClick=\"location.href='$gatewayurl'\" >
-		</form>
+        <div class=\"header\">
+            <h1>You have been granted access to the Internet.</h1>
+            <p></p>
+        </div>
 		<hr>
 	"
 	auth_fail="
-		<p>
-			<big-red>
-				Something went wrong and you have failed to log in.
-			</big-red>
-			<hr>
-		</p>
-		<hr>
-		<p>
-			<italic-black>
-				Your login attempt probably timed out.
-			</italic-black>
-		</p>
-		<p>
-			<br>
-			Click or tap Continue to try again.
-		</p>
-		<form>
-			<input type=\"button\" VALUE=\"Continue\" onClick=\"location.href='$originurl'\" >
-		</form>
+        <div class=\"header\">
+            <h1>There was an error.</h1>
+            <p></p>
+        </div>
 		<hr>
 	"
 
